@@ -44,13 +44,13 @@ h1 span{color:var(--ink-3);font-weight:500}
 .mapwrap img{display:block;width:100%;height:100%}
 svg.overlay{position:absolute;inset:0;width:100%;height:100%}
 .zone{cursor:pointer}
-.zone rect.body{stroke-width:2.2;vector-effect:non-scaling-stroke}
+.zone rect.body{stroke-width:1;vector-effect:non-scaling-stroke}
 .zone.dim{opacity:.34}
-.zone.sel rect.body{stroke-width:4.5}
+.zone.sel rect.body{stroke-width:2.5}
 .zone text{font-family:"Barlow Semi Condensed",sans-serif;font-weight:700;
-  paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round;pointer-events:none}
+  paint-order:stroke;stroke-width:3px;stroke-linejoin:round;pointer-events:none}
 .editing .zone{cursor:move}
-.zone.epick rect.body{stroke-width:5}
+.zone.epick rect.body{stroke-width:3}
 .handle{fill:#fff;stroke:#182028;stroke-width:1.8;vector-effect:non-scaling-stroke;cursor:grab}
 .handle.rot{fill:var(--signal)}
 .hstem{stroke:#182028;stroke-opacity:.45;stroke-width:1.4;vector-effect:non-scaling-stroke}
@@ -59,8 +59,14 @@ svg.overlay{position:absolute;inset:0;width:100%;height:100%}
 .zoomer button{width:48px;height:48px;background:#fff;border:1px solid var(--rule);
   border-radius:var(--radius);font-size:22px;line-height:1;color:var(--ink);
   box-shadow:0 1px 4px rgba(24,32,40,.18);display:flex;align-items:center;justify-content:center}
-.hint{position:absolute;left:10px;bottom:12px;z-index:5;font-size:13px;color:var(--ink-3);
-  background:rgba(255,255,255,.82);padding:4px 9px;border-radius:var(--radius);max-width:52%}
+.key{position:absolute;left:10px;bottom:10px;z-index:5;display:flex;gap:12px;flex-wrap:wrap;
+  font-size:13.5px;color:var(--ink-2);background:rgba(255,255,255,.9);
+  padding:7px 11px;border-radius:var(--radius);box-shadow:0 1px 3px rgba(24,32,40,.14)}
+.key span{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.sw{width:18px;height:12px;border-radius:3px;display:inline-block}
+.sw.solid{background:#2E7D32}
+.sw.hollow{background:#2E7D32;opacity:.26}
+.sw.grey{background:#aeb7bc}
 
 .drop{position:absolute;inset:12px;z-index:6;border:2px dashed var(--rule);border-radius:8px;
   background:#fff;padding:22px;display:flex;flex-direction:column;justify-content:center}
@@ -140,6 +146,24 @@ input[type=range]::-moz-range-thumb{width:32px;height:32px;border-radius:50%;bac
   padding:0 14px;min-height:44px;font-size:15px;color:var(--ink-2)}
 .foot .sp{margin-left:auto}
 
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#fff;
+  border-radius:18px 18px 0 0;box-shadow:0 -8px 28px rgba(24,32,40,.24);
+  padding:8px 18px calc(20px + env(safe-area-inset-bottom));
+  max-height:72vh;overflow:auto;transform:translateY(112%);
+  transition:transform .22s cubic-bezier(.2,.8,.3,1);touch-action:pan-y}
+.sheet.open{transform:none}
+.sheet .grab{display:block;width:52px;height:6px;border-radius:3px;background:var(--rule);
+  margin:4px auto 12px;padding:0}
+.sheet .x{position:absolute;right:8px;top:8px;width:44px;height:44px;font-size:26px;
+  line-height:1;color:var(--ink-3)}
+.sheet .hd h3{font-size:21px}
+.daystrip{position:relative;margin-top:14px}
+.daystrip .mark{position:absolute;top:-4px;bottom:16px;width:2px;background:var(--ink)}
+.daystrip .mark::before{content:"";position:absolute;top:-3px;left:-4px;width:10px;height:10px;
+  border-radius:50%;background:var(--ink)}
+.daystrip .ruler{margin-top:4px}
+@media (min-width:900px){.sheet{display:none}}
+@media (max-width:899px){.detail{display:none}}
 .tip{position:fixed;z-index:20;pointer-events:none;background:var(--ink);color:#fff;
   padding:7px 11px;border-radius:var(--radius);font-size:15px;
   transform:translate(-50%,-135%);white-space:nowrap;opacity:0}
@@ -158,7 +182,7 @@ input[type=range]::-moz-range-thumb{width:32px;height:32px;border-radius:50%;bac
   .stage{flex:1;height:auto;min-height:0}
   .side{width:380px;flex:none;border-left:1px solid var(--rule);min-height:0;overflow:auto}
   .rows{flex:none}
-  .hint{max-width:280px}
+  .key{font-size:14px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -195,7 +219,7 @@ input[type=range]::-moz-range-thumb{width:32px;height:32px;border-radius:50%;bac
         <button id="zout" aria-label="Zoom out">−</button>
         <button id="zfit" aria-label="Fit whole map">⤢</button>
       </div>
-      <div class="hint" id="hint">Pinch or use + to zoom in</div>
+      <div class="key" id="key"><span>Pinch to zoom · tap a zone for its rule</span></div>
       <div class="drop" id="drop" style="display:none">
         <h2>Add the base map</h2>
         <p>Put a file called <b>map.png</b> beside this page and it loads on its own (map.PNG works too).
@@ -236,12 +260,17 @@ input[type=range]::-moz-range-thumb{width:32px;height:32px;border-radius:50%;bac
         <span id="count"></span>
         <span id="err" style="color:var(--stop)"></span>
         <span class="sp"></span>
-        <button id="build" style="opacity:.7;border:0;background:none;padding:0;min-height:0">build 18</button>
+        <button id="build" style="opacity:.7;border:0;background:none;padding:0;min-height:0">build 24</button>
         <button id="editBtn">Edit zones</button>
         <button id="resetBtn">Change map</button>
       </div>
     </aside>
   </main>
+</div>
+<div class="sheet" id="sheet" role="dialog" aria-hidden="true">
+  <button class="grab" id="sheetGrab" aria-label="Close"></button>
+  <button class="x" id="sheetX" aria-label="Close">&times;</button>
+  <div id="sheetBody"></div>
 </div>
 <div class="tip" id="tip"></div>
 
@@ -426,7 +455,6 @@ function clampZ(){
 }
 function applyZ(){
   wrap.style.transform=`translate(${Z.tx}px, ${Z.ty}px) scale(${Z.k})`;
-  const hint=$("#hint"); if(hint)hint.style.display=Z.k>1.05?"none":"";
 }
 /* zoom around a point given in viewport coordinates */
 function zoomAt(k2,cx,cy){
@@ -552,9 +580,23 @@ async function fetchZones(){
 }
 (async()=>{
   const file=await fetchZones();
-  if(file){loadZones(file);ZSRC="parking-zones.json"}
-  try{const z=await STORE.get("zones:v3");
-      if(z){loadZones(JSON.parse(z));ZSRC="your saved edits"}}catch(e){}
+  const base=file||DEFAULT_ZONES;
+  loadZones(base);
+  ZSRC=file?"parking-zones.json":"built-in copy";
+  try{
+    const z=await STORE.get("zones:v3");
+    if(z){
+      const saved=JSON.parse(z);
+      if(saved.length===base.length){          // matches the published set — use the edits
+        loadZones(saved);ZSRC="your saved edits";
+      }else{                                    // stale copy from an older build — bin it
+        console.warn("saved zones ("+saved.length+") no longer match the published set ("
+                     +base.length+") — discarding");
+        await del("zones:v3");
+        ZSRC=(file?"parking-zones.json":"built-in copy")+" (old saved copy discarded)";
+      }
+    }
+  }catch(e){}
   render();
   let saved=null;
   try{saved=await STORE.get("map:base")}catch(e){}
@@ -580,14 +622,8 @@ function drawZones(){
     rect.setAttribute("width",z.w);rect.setAttribute("height",z.h);rect.setAttribute("rx",3);
     rect.setAttribute("fill",r.color);
     rect.setAttribute("stroke",r.color);
-    if(st.state==="no"){                    // not available at this time
-      rect.setAttribute("fill-opacity",.34);
-    }else if(st.live){                      // its signed hours are running now
-      rect.setAttribute("fill-opacity",.62);
-    }else{                                  // hours not running — still clearly on the map
-      rect.setAttribute("fill-opacity",.28);
-      rect.setAttribute("stroke-dasharray","6 4");
-    }
+    rect.setAttribute("stroke-opacity",.6);
+    rect.setAttribute("fill-opacity",st.state==="no"?.30:.45);
     g.appendChild(rect);
     if(st.state==="no"){
       const hz=rect.cloneNode();hz.setAttribute("fill","url(#hatch)");
@@ -598,6 +634,7 @@ function drawZones(){
     t.setAttribute("text-anchor","middle");t.setAttribute("dominant-baseline","central");
     t.setAttribute("font-size",Math.min(15,Math.max(9,(vert?z.w:z.h)*.8)));
     t.setAttribute("fill",r.ink||r.color);
+    t.setAttribute("stroke","#ffffff");
     if(vert)t.setAttribute("transform","rotate(-90)");
     t.textContent=tagOf(z.id);
     g.appendChild(t);
@@ -731,6 +768,23 @@ function toggleEdit(on){
   }
   editLabel();render();
 }
+$("#sheetX").onclick=()=>{state.sel=null;render()};
+$("#sheetGrab").onclick=()=>{state.sel=null;render()};
+/* flick the sheet down to dismiss */
+(()=>{
+  const sh=$("#sheet");let y0=null;
+  sh.addEventListener("pointerdown",e=>{if(sh.scrollTop<=0)y0=e.clientY});
+  sh.addEventListener("pointermove",e=>{
+    if(y0===null)return;const dy=e.clientY-y0;
+    if(dy>0)sh.style.transform=`translateY(${dy}px)`;
+  });
+  ["pointerup","pointercancel"].forEach(t=>sh.addEventListener(t,e=>{
+    if(y0===null)return;
+    const dy=e.clientY-y0;sh.style.transform="";
+    if(dy>90){state.sel=null;render()}
+    y0=null;
+  }));
+})();
 $("#editBtn").onclick=()=>toggleEdit(!state.edit);
 
 /* tap the build number: report every bar actually on the map */
@@ -743,7 +797,7 @@ $("#build").onclick=()=>{
     const vis=node?(node.classList.contains("dim")?"faded":"shown"):"MISSING";
     return `${z.id} @${Math.round(z.cx)},${Math.round(z.cy)}  ${vis}  ${st.head}`;
   });
-  alert(`build 18 · source: ${ZSRC}\n${ZONES.length} zones loaded, ${drawn} drawn\n\n`+lines.join("\n"));
+  alert(`build 24 · source: ${ZSRC}\n${ZONES.length} zones loaded, ${drawn} drawn\n\n`+lines.join("\n"));
 };
 $("#editDone").onclick=()=>toggleEdit(false);
 $("#editReset").onclick=async()=>{
@@ -791,6 +845,28 @@ ov.addEventListener("pointermove",e=>{
 ov.addEventListener("pointerleave",()=>tip.classList.remove("on"));
 
 /* ===== day timeline ===== */
+/* the day strip for one sign, shared by the list and the tap-up sheet */
+function trackHTML(id,school){
+  const r=RULES[id],pc=m=>(Math.min(Math.max(m,T0),T1)-T0)/(T1-T0)*100;
+  const bar=(f,t,col,txt,ink)=>
+    `<div class="win" style="left:${pc(f)}%;width:${pc(t)-pc(f)}%;background:${col};color:${ink||"#fff"}">${txt}</div>`;
+  if(r.kind==="closed"){
+    const end=r.always?T1:FREE_FROM;
+    return `<div class="free"></div>`+bar(T0,end,r.color,r.note,r.ink);
+  }
+  if(r.kind==="free") return bar(T0,T1,r.color,"no time limit");
+  if(r.kind==="phases"){
+    const ps=phasesFor(id,state.day,school);
+    if(!ps.length)return `<div class="free"></div><div class="win" style="left:0;right:0;color:#78848b">no restriction today</div>`;
+    return `<div class="free"></div>`+ps.map(x=>bar(x.f,x.t,
+      x.closed?(x.closed==="Mail zone"?"#9E9E9E":"#7E57C2"):r.color,
+      x.closed?x.closed.toLowerCase():dur(x.limit),r.ink)).join("");
+  }
+  const ws=winsFor(id,state.day,school);
+  if(!ws.length)return `<div class="free"></div><div class="win" style="left:0;right:0;color:#78848b">${r.kind==="window"?"open to anyone today":"no restriction today"}</div>`;
+  return `<div class="free"></div>`+ws.map(w=>bar(w.f,w.t,r.color,
+    r.kind==="window"?"buses only":dur(r.limit),r.ink)).join("");
+}
 function drawRows(){
   const rows=$("#rows"),school=$("#schoolChk").checked;
   [...rows.querySelectorAll(".row")].forEach(n=>n.remove());
@@ -800,36 +876,8 @@ function drawRows(){
     if(passes(st))n++;
     const row=document.createElement("button");
     row.className="row"+((state.sel&&state.sel!==id)||!passes(st)?" dim":"")+(state.sel===id?" sel":"");
-    row.innerHTML=`<span class="tag" style="background:${r.color};color:${r.ink||"#fff"}">${tagOf(id)}</span>`;
-    const tr=document.createElement("div");tr.className="track";
-    if(r.kind==="closed"){
-      tr.innerHTML=`<div class="win" style="left:0;right:0;background:${r.color}">${r.note}</div>`;
-    }else if(r.kind==="free"){
-      tr.innerHTML=`<div class="win" style="left:0;right:0;background:${r.color}">no time limit</div>`;
-    }else if(r.kind==="phases"){
-      const ps=phasesFor(id,state.day,school);
-      tr.innerHTML=`<div class="free"></div>`+ps.map(x=>{
-        const a=(Math.max(x.f,T0)-T0)/(T1-T0)*100,b=(Math.min(x.t,T1)-T0)/(T1-T0)*100;
-        const col=x.closed?(x.closed==="Mail zone"?"#9E9E9E":"#7E57C2"):r.color;
-        return `<div class="win" style="left:${a}%;width:${b-a}%;background:${col}">${x.closed?x.closed.toLowerCase():dur(x.limit)}</div>`;
-      }).join("");
-      if(!ps.length)tr.innerHTML+=`<div class="win" style="left:0;right:0;color:#78848b">no restriction today</div>`;
-    }else if(r.kind==="window"){
-      const ws=winsFor(id,state.day,school);
-      tr.innerHTML=`<div class="free"></div>`+ws.map(w=>{
-        const a=(Math.max(w.f,T0)-T0)/(T1-T0)*100,b=(Math.min(w.t,T1)-T0)/(T1-T0)*100;
-        return `<div class="win" style="left:${a}%;width:${b-a}%;background:${r.color}">buses only</div>`;
-      }).join("");
-      if(!ws.length)tr.innerHTML+=`<div class="win" style="left:0;right:0;color:#78848b">open to anyone today</div>`;
-    }else{
-      const ws=winsFor(id,state.day,school);
-      tr.innerHTML=`<div class="free"></div>`+ws.map(w=>{
-        const a=(Math.max(w.f,T0)-T0)/(T1-T0)*100,b=(Math.min(w.t,T1)-T0)/(T1-T0)*100;
-        return `<div class="win" style="left:${a}%;width:${b-a}%;background:${r.color};color:${r.ink||"#fff"}">${dur(r.limit)}</div>`;
-      }).join("");
-      if(!ws.length)tr.innerHTML+=`<div class="win" style="left:0;right:0;color:#8b959c">no restriction today</div>`;
-    }
-    row.appendChild(tr);
+    row.innerHTML=`<span class="tag" style="background:${r.color};color:${r.ink||"#fff"}">${tagOf(id)}</span>`
+      +`<div class="track">${trackHTML(id,school)}</div>`;
     row.onclick=()=>{state.sel=state.sel===id?null:id;render()};
     rows.appendChild(row);
   });
@@ -840,27 +888,45 @@ function drawRows(){
 }
 
 /* ===== detail ===== */
-function drawDetail(){
-  const d=$("#detail");
-  if(!state.sel){d.hidden=true;return}
-  const id=state.sel,r=RULES[id],school=$("#schoolChk").checked;
+function detailHTML(id){
+  const r=RULES[id],school=$("#schoolChk").checked;
   const st=statusOf(id,state.day,state.min,school),ws=winsFor(id,state.day,school);
+  let sched;
   if(r.kind==="phases"){
     const ps=phasesFor(id,state.day,school);
-    var sched=ps.length
+    sched=ps.length
       ? "Today: "+ps.map(x=>`${x.closed?x.closed.toLowerCase():dur(x.limit)+" parking"} ${fmt(x.f)} – ${fmt(x.t)}`).join(", ")
       : "No restriction on "+LONG[state.day];
+  }else{
+    sched=r.kind!=="limit"?"":
+      (ws.length?`Today: ${ws.map(w=>`${fmt(w.f)} – ${fmt(w.t)}`).join(", ")}`
+        :(r.school&&!school?"No restriction — this limit only applies on school days"
+          :"No restriction on "+LONG[state.day]));
   }
-  else var sched=r.kind!=="limit"?"":
-    (ws.length?`Today: ${ws.map(w=>`${fmt(w.f)} – ${fmt(w.t)}`).join(", ")}`
-      :(r.school&&!school?"No restriction — this limit only applies on school days"
-        :"No restriction on "+LONG[state.day]));
-  d.hidden=false;
-  d.innerHTML=`<div class="hd"><span class="tag" style="background:${r.color};color:${r.ink||"#fff"}">${tagOf(id)}</span>
-    <h3>${r.name}</h3></div>
-    <div class="verdict ${st.state}">${st.head}</div><p>${st.sub}</p>
+  const pos=(Math.min(Math.max(state.min,T0),T1)-T0)/(T1-T0)*100;
+  return `<div class="hd">
+      <span class="tag" style="background:${r.color};color:${r.ink||"#fff"}">${tagOf(id)}</span>
+      <h3>${r.name}</h3></div>
+    <div class="verdict ${st.state}">${st.head}</div>
+    <p>${st.sub}</p>
     ${sched?`<p>${sched}</p>`:""}
-    ${st.stay<9999&&st.stay>0?`<p>Arriving ${fmt(state.min)}, you can stay until about <b>${fmt(Math.min(state.min+st.stay,1439))}</b>.</p>`:""}`;
+    ${st.stay<9999&&st.stay>0?`<p>Arriving ${fmt(state.min)}, you can stay until about <b>${fmt(Math.min(state.min+st.stay,1439))}</b>.</p>`:""}
+    <div class="daystrip">
+      <div class="track">${trackHTML(id,school)}</div>
+      <div class="mark" style="left:${pos}%"></div>
+      <div class="ruler"><span>6a</span><span>12p</span><span>8p</span></div>
+    </div>`;
+}
+function drawDetail(){
+  const d=$("#detail"),sheet=$("#sheet");
+  if(!state.sel){
+    d.hidden=true;sheet.classList.remove("open");sheet.setAttribute("aria-hidden","true");
+    return;
+  }
+  const html=detailHTML(state.sel);
+  d.hidden=false;d.innerHTML=html;
+  $("#sheetBody").innerHTML=html;
+  sheet.classList.add("open");sheet.setAttribute("aria-hidden","false");
 }
 
 /* ===== controls ===== */
