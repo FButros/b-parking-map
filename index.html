@@ -236,7 +236,7 @@ input[type=range]::-moz-range-thumb{width:32px;height:32px;border-radius:50%;bac
         <span id="count"></span>
         <span id="err" style="color:var(--stop)"></span>
         <span class="sp"></span>
-        <span id="build" style="opacity:.7">build 14</span>
+        <span id="build" style="opacity:.7">build 15</span>
         <button id="editBtn">Edit zones</button>
         <button id="resetBtn">Change map</button>
       </div>
@@ -250,6 +250,9 @@ input[type=range]::-moz-range-thumb{width:32px;height:32px;border-radius:50%;bac
 const RULES={
  "P1"  :{name:"2 minute pick-up",color:"#2E7D32",kind:"limit",limit:2,school:true,
          windows:[{d:[0,1,2,3,4],f:480,t:570},{d:[0,1,2,3,4],f:900,t:960}]},
+ "P1-BZ":{name:"2 minute pick-up, bus zone 3–4 pm",tag:"P1",color:"#2E7D32",kind:"phases",
+         phases:[{d:[0,1,2,3,4],f:480,t:570,limit:2,school:true},
+                 {d:[0,1,2,3,4],f:900,t:960,closed:"Bus zone"}]},
  "P2"  :{name:"All day parking",color:"#1565C0",kind:"free"},
  "P3"  :{name:"5 minute pick-up",color:"#E8B500",ink:"#182028",kind:"limit",limit:5,school:true,
          windows:[{d:[0,1,2,3,4],f:480,t:540},{d:[0,1,2,3,4],f:900,t:975}]},
@@ -275,7 +278,7 @@ const RULES={
          windows:[{d:[0,1,2,3,4],f:900,t:960}]},
  "NS"  :{name:"No stopping",color:"#E53935",kind:"closed",always:true,note:"No stopping at any time"}
 };
-const ORDER=["P1","P2","P3","P4","P5","P6","P7","P8","P9","P10","MZ","PZ","BZ","BZ-PM","NS"];
+const ORDER=["P1","P1-BZ","P2","P3","P4","P5","P6","P7","P8","P9","P10","MZ","PZ","BZ","BZ-PM","NS"];
 const FREE_FROM=1080;                     // 6 pm — everything timed lifts
 const LEGACY={"P9-L":"P9","P9-R":"P10"};  // ids used by earlier saved files
 const tagOf=id=>RULES[id].tag||id;
@@ -303,7 +306,7 @@ const DEFAULT_ZONES=[
  ["P2",    880.6, 444.2, 247.9,  21.0,   1.6],
  ["P2",     48.0, 473.0,  96.0,  21.0,   1.9],
  ["BZ",    188.0, 476.8, 150.0,  21.0,   1.9],
- ["P1",    404.0, 481.0, 226.0,  21.0,   1.2],
+ ["P1-BZ", 404.0, 481.0, 226.0,  21.0,   1.2],
  ["BZ-PM", 404.5, 504.9, 226.0,  21.0,   1.2],
  ["NS",    578.5, 487.4,  58.0,  21.0,   0.0],
  ["P1",    681.9, 491.1, 124.6,  21.0,   1.7],
@@ -344,9 +347,10 @@ function winsFor(id,day,school){
   if(r.school&&!school)return[];
   return (r.windows||[]).filter(w=>w.d.includes(day)).sort((a,b)=>a.f-b.f);
 }
-function phasesFor(id,day){
+function phasesFor(id,day,school){
   const r=RULES[id];
-  return r.kind!=="phases"?[]:r.phases.filter(p=>p.d.includes(day)).sort((a,b)=>a.f-b.f);
+  if(r.kind!=="phases")return[];
+  return r.phases.filter(p=>p.d.includes(day)&&!(p.school&&!school)).sort((a,b)=>a.f-b.f);
 }
 function statusOf(id,day,min,school){
   const r=RULES[id];
@@ -358,7 +362,7 @@ function statusOf(id,day,min,school){
            sub:r.always?"Applies at all times":"Applies until 6 pm, then anyone can park"};
   }
   if(r.kind==="phases"){
-    const ps=phasesFor(id,day),cur=ps.find(x=>min>=x.f&&min<x.t);
+    const ps=phasesFor(id,day,school),cur=ps.find(x=>min>=x.f&&min<x.t);
     if(cur&&cur.closed)
       return{state:"no",head:cur.closed,stay:0,
              sub:`${cur.closed} from ${fmt(cur.f)} to ${fmt(cur.t)}, Monday to Friday.`};
@@ -786,11 +790,11 @@ function drawRows(){
     }else if(r.kind==="free"){
       tr.innerHTML=`<div class="win" style="left:0;right:0;background:${r.color}">no time limit</div>`;
     }else if(r.kind==="phases"){
-      const ps=phasesFor(id,state.day);
+      const ps=phasesFor(id,state.day,school);
       tr.innerHTML=`<div class="free"></div>`+ps.map(x=>{
         const a=(Math.max(x.f,T0)-T0)/(T1-T0)*100,b=(Math.min(x.t,T1)-T0)/(T1-T0)*100;
-        const col=x.closed?"#9E9E9E":r.color;
-        return `<div class="win" style="left:${a}%;width:${b-a}%;background:${col}">${x.closed?"mail zone":dur(x.limit)}</div>`;
+        const col=x.closed?(x.closed==="Mail zone"?"#9E9E9E":"#7E57C2"):r.color;
+        return `<div class="win" style="left:${a}%;width:${b-a}%;background:${col}">${x.closed?x.closed.toLowerCase():dur(x.limit)}</div>`;
       }).join("");
       if(!ps.length)tr.innerHTML+=`<div class="win" style="left:0;right:0;color:#78848b">no restriction today</div>`;
     }else if(r.kind==="window"){
@@ -825,7 +829,7 @@ function drawDetail(){
   const id=state.sel,r=RULES[id],school=$("#schoolChk").checked;
   const st=statusOf(id,state.day,state.min,school),ws=winsFor(id,state.day,school);
   if(r.kind==="phases"){
-    const ps=phasesFor(id,state.day);
+    const ps=phasesFor(id,state.day,school);
     var sched=ps.length
       ? "Today: "+ps.map(x=>`${x.closed?x.closed.toLowerCase():dur(x.limit)+" parking"} ${fmt(x.f)} – ${fmt(x.t)}`).join(", ")
       : "No restriction on "+LONG[state.day];
