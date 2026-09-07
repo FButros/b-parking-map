@@ -236,7 +236,7 @@ input[type=range]::-moz-range-thumb{width:32px;height:32px;border-radius:50%;bac
         <span id="count"></span>
         <span id="err" style="color:var(--stop)"></span>
         <span class="sp"></span>
-        <span id="build" style="opacity:.7">build 15</span>
+        <span id="build" style="opacity:.7">build 16</span>
         <button id="editBtn">Edit zones</button>
         <button id="resetBtn">Change map</button>
       </div>
@@ -323,8 +323,14 @@ const DEFAULT_ZONES=[
 const REF={w:1097,h:1054};
 let ZONES=[];
 function loadZones(list){
-  list=list.map(z=>{const c=z.slice();c[0]=LEGACY[c[0]]||c[0];return c})
-           .filter(z=>RULES[z[0]]);ZONES=list.map((z,i)=>({i,id:z[0],cx:z[1],cy:z[2],w:z[3],h:z[4],rot:z[5]}))}
+  list=list.map(z=>{
+    const c=z.slice(); let id=LEGACY[c[0]]||c[0];
+    if(!RULES[id]&&RULES[id.split("-")[0]])id=id.split("-")[0]; // unknown variant -> base sign
+    c[0]=id; return c;
+  }).filter(z=>{
+    if(RULES[z[0]])return true;
+    console.warn("unknown zone id dropped:",z[0]); return false;
+  });ZONES=list.map((z,i)=>({i,id:z[0],cx:z[1],cy:z[2],w:z[3],h:z[4],rot:z[5]}))}
 loadZones(DEFAULT_ZONES);
 
 /* ===== state ===== */
