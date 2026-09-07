@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tooronga Rd precinct — parking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#eef0ec; --panel:#f7f8f5; --ink:#182028; --ink-2:#4a565f; --ink-3:#8b959c;
+  --rule:#cdd3cd; --rule-2:#dde1dc; --signal:#f2b21c; --go:#3f8f4a; --stop:#d93a34;
+  --radius:3px; --pad:16px;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:Barlow,"Helvetica Neue",Arial,sans-serif;font-size:15px;line-height:1.45;
+  -webkit-text-size-adjust:100%;overscroll-behavior:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+.app{display:flex;flex-direction:column;height:100dvh}
+header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+  padding:10px var(--pad) 9px;border-bottom:1px solid var(--rule);background:var(--panel)}
+h1{font-family:"Barlow Semi Condensed",sans-serif;font-weight:700;font-size:20px;margin:0}
+h1 span{color:var(--ink-3);font-weight:500}
+.days{display:flex;margin-left:auto;border:1px solid var(--rule);border-radius:var(--radius);overflow:hidden}
+.days button{padding:4px 9px;font-family:"Barlow Semi Condensed",sans-serif;font-weight:600;font-size:14px;color:var(--ink-2);background:#fff}
+.days button+button{border-left:1px solid var(--rule-2)}
+.days button[aria-pressed=true]{background:var(--ink);color:#fff}
+.school{display:flex;align-items:center;gap:7px;font-size:13.5px;color:var(--ink-2);white-space:nowrap}
+.school input{accent-color:var(--ink);width:15px;height:15px}
+
+main{flex:1;display:flex;min-height:0}
+.stage{flex:1;position:relative;min-width:0;display:flex;align-items:center;justify-content:center;padding:10px}
+.side{width:344px;flex:none;border-left:1px solid var(--rule);background:var(--panel);
+  display:flex;flex-direction:column;min-height:0}
+
+.mapwrap{position:relative;line-height:0;box-shadow:0 1px 0 rgba(24,32,40,.14)}
+.mapwrap img{display:block;width:100%;height:100%}
+svg.overlay{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+.zone rect.body{stroke-width:2.2;vector-effect:non-scaling-stroke}
+.zone{cursor:pointer}
+.zone.dim{opacity:.2}
+.zone.sel rect.body{stroke-width:4}
+.zone text{font-family:"Barlow Semi Condensed",sans-serif;font-weight:700;
+  paint-order:stroke;stroke:#fff;stroke-width:2.6px;stroke-linejoin:round;pointer-events:none}
+
+.drop{border:2px dashed var(--rule);border-radius:6px;background:#fff;padding:44px 34px;max-width:430px}
+.drop.hot{border-color:var(--ink)}
+.drop h2{font-family:"Barlow Semi Condensed",sans-serif;font-size:22px;margin:0 0 8px}
+.drop p{margin:0 0 16px;color:var(--ink-2);font-size:14.5px}
+.btn{display:inline-block;padding:8px 14px;border:1px solid var(--ink);border-radius:var(--radius);
+  font-family:"Barlow Semi Condensed",sans-serif;font-weight:600;background:var(--ink);color:#fff}
+
+
+.timebar{padding:12px var(--pad) 6px;border-bottom:1px solid var(--rule)}
+.clock{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
+.clock .t{font-family:"Barlow Semi Condensed",sans-serif;font-weight:700;font-size:30px;line-height:1}
+.clock .d{color:var(--ink-3);font-size:14px}
+.clock .now{margin-left:auto;border:1px solid var(--rule);border-radius:var(--radius);padding:3px 10px;
+  font-family:"Barlow Semi Condensed",sans-serif;font-weight:600;font-size:13.5px;background:#fff}
+.clock .now[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
+input[type=range]{width:100%;margin:0;accent-color:var(--ink);height:22px}
+.ruler{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+
+.filter{padding:10px var(--pad);border-bottom:1px solid var(--rule);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.filter .lab{font-size:13.5px;color:var(--ink-2)}
+.chips{display:flex;gap:4px;flex-wrap:wrap}
+.chip{border:1px solid var(--rule);background:#fff;border-radius:var(--radius);padding:3px 9px;
+  font-size:13px;font-family:"Barlow Semi Condensed",sans-serif;font-weight:600;color:var(--ink-2)}
+.chip[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fff}
+
+.rows{flex:1;overflow:auto;position:relative;padding-bottom:10px}
+.playhead{position:absolute;top:0;bottom:0;width:1px;background:var(--signal);pointer-events:none;z-index:3}
+.playhead::before{content:"";position:absolute;top:0;left:-3px;border-left:3.5px solid transparent;
+  border-right:3.5px solid transparent;border-top:6px solid var(--signal)}
+.row{display:grid;grid-template-columns:52px 1fr;align-items:center;gap:8px;
+  padding:3px var(--pad) 3px 10px;cursor:pointer;width:100%;text-align:left}
+.row:hover{background:#eceeea}
+.row.dim{opacity:.34}
+.row.sel{background:#e4e8e3}
+.tag{font-family:"Barlow Semi Condensed",sans-serif;font-weight:700;font-size:13px;color:#fff;
+  text-align:center;border-radius:2px;padding:2px 0}
+.track{position:relative;height:20px;background:#e6e9e4;border-radius:2px;overflow:hidden}
+.track .win{position:absolute;top:0;bottom:0;display:flex;align-items:center;justify-content:center;
+  font-size:10.5px;font-family:"Barlow Semi Condensed",sans-serif;font-weight:600;color:#fff;
+  white-space:nowrap;overflow:hidden}
+.track .free{position:absolute;inset:0;background:repeating-linear-gradient(90deg,#dfe4de 0 5px,#e6e9e4 5px 10px)}
+
+.detail{border-top:1px solid var(--rule);padding:12px var(--pad) 14px;background:#fff}
+.detail .hd{display:flex;align-items:center;gap:9px;margin-bottom:6px}
+.detail .hd .tag{width:52px;flex:none;font-size:14px;padding:3px 0}
+.detail .hd h3{margin:0;font-family:"Barlow Semi Condensed",sans-serif;font-size:17px;font-weight:600}
+.verdict{font-family:"Barlow Semi Condensed",sans-serif;font-weight:700;font-size:20px;line-height:1.15;margin:2px 0 4px}
+.verdict.go{color:var(--go)} .verdict.warn{color:#b06d05} .verdict.no{color:var(--stop)}
+.detail p{margin:2px 0;font-size:13.5px;color:var(--ink-2)}
+.foot{display:flex;gap:12px;align-items:center;padding:8px var(--pad);border-top:1px solid var(--rule);
+  font-size:12.5px;color:var(--ink-3);background:var(--panel)}
+.foot button{text-decoration:underline;text-underline-offset:2px;font-size:12.5px;color:var(--ink-2)}
+.foot .sp{margin-left:auto}
+
+.tip{position:fixed;z-index:20;pointer-events:none;background:var(--ink);color:#fff;padding:5px 9px;
+  border-radius:var(--radius);font-size:13px;transform:translate(-50%,-125%);white-space:nowrap;opacity:0}
+.tip.on{opacity:1}
+.editing .zone{cursor:move}
+.zone.epick rect.body{stroke-width:4}
+.handle{fill:#fff;stroke:#182028;stroke-width:1.6;vector-effect:non-scaling-stroke;cursor:grab}
+.handle.rot{fill:var(--signal)}
+.hstem{stroke:#182028;stroke-opacity:.45;stroke-width:1.2;vector-effect:non-scaling-stroke}
+.editbar{border-top:1px solid var(--rule);padding:10px var(--pad);background:#fff;
+  display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--ink-2)}
+.editbar .who{font-family:"Barlow Semi Condensed",sans-serif;font-weight:700;font-size:15px;color:var(--ink)}
+.editbar button{border:1px solid var(--rule);border-radius:var(--radius);padding:3px 10px;
+  font-family:"Barlow Semi Condensed",sans-serif;font-weight:600;font-size:13px;background:#fff}
+.editbar button.prim{background:var(--ink);color:#fff;border-color:var(--ink)}
+.editbar .sp{margin-left:auto}
+.tip b{font-family:"Barlow Semi Condensed",sans-serif;font-weight:700}
+
+@media (max-width:860px){
+  main{flex-direction:column;overflow:auto}
+  .stage{padding:8px;flex:none}
+  .side{width:auto;border-left:0;border-top:1px solid var(--rule)}
+  .rows{overflow:visible}
+  h1{font-size:18px}
+  .days{margin-left:0;order:3;width:100%}
+  .days button{flex:1;padding:5px 0}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Tooronga&nbsp;Rd precinct <span>parking</span></h1>
+    <label class="school"><input type="checkbox" id="schoolChk" checked> School day</label>
+    <div class="days" id="days" role="group" aria-label="Day of week"></div>
+  </header>
+
+  <main>
+    <div class="stage" id="stage">
+      <div class="drop" id="drop" style="display:none">
+        <h2>Add the base map</h2>
+        <p>Put a file called <b>map.png</b> beside this page and it loads on its own (map.PNG works too).
+           Otherwise drop your street map here, or choose the file — it's remembered after that.</p>
+        <button class="btn" id="pick">Choose image</button>
+        <input type="file" id="file" accept="image/*" hidden>
+      </div>
+      <div class="mapwrap" id="mapwrap" hidden>
+        <img id="mapimg" alt="Street map of the Tooronga Rd precinct">
+        <svg class="overlay" id="ov" viewBox="0 0 1097 1054" preserveAspectRatio="none">
+          <defs>
+            <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <rect width="7" height="7" fill="#fff" fill-opacity=".55"/>
+              <line x1="0" y1="0" x2="0" y2="7" stroke="#182028" stroke-opacity=".5" stroke-width="2.5"/>
+            </pattern>
+          </defs>
+          <g id="zones"></g>
+          <g id="handles"></g>
+        </svg>
+      </div>
+    </div>
+
+    <aside class="side">
+      <div class="timebar">
+        <div class="clock">
+          <div class="t" id="tLabel">2:15 pm</div>
+          <div class="d" id="dLabel">Tuesday</div>
+          <button class="now" id="nowBtn" aria-pressed="true">Now</button>
+        </div>
+        <input type="range" id="time" min="360" max="1200" step="5" value="855" aria-label="Time of day">
+        <div class="ruler"><span>6a</span><span>9a</span><span>12p</span><span>3p</span><span>6p</span><span>8p</span></div>
+      </div>
+      <div class="filter">
+        <span class="lab">I need to park for</span>
+        <div class="chips" id="stayChips"></div>
+      </div>
+      <div class="rows" id="rows"><div class="playhead" id="ph"></div></div>
+      <div class="editbar" id="editbar" hidden>
+        <span class="who" id="editWho">Tap a zone on the map</span>
+        <span id="zoneSrc" style="font-size:12px;color:var(--ink-3)"></span>
+        <span class="sp"></span>
+        <span id="saveState"></span>
+        <button id="editExport">Export</button>
+        <button id="editImport">Import</button>
+        <button id="editReset">Reset all</button>
+        <button id="editDone" class="prim">Done</button>
+        <input type="file" id="zoneFile" accept="application/json,.json" hidden>
+      </div>
+      <div class="detail" id="detail" hidden></div>
+      <div class="foot">
+        <span id="count"></span>
+        <span id="err" style="color:var(--stop)"></span>
+        <span class="sp"></span>
+        <span id="build" style="opacity:.7">build 9</span>
+        <button id="editBtn">Edit zones</button>
+        <button id="resetBtn">Change map</button>
+      </div>
+    </aside>
+  </main>
+</div>
+<div class="tip" id="tip"></div>
+
+<script>
+/* ===== rules from the legend; minutes from midnight, days 0=Mon … 6=Sun ===== */
+const RULES={
+ "P1"  :{name:"2 minute pick-up",color:"#2E7D32",kind:"limit",limit:2,school:true,
+         windows:[{d:[0,1,2,3,4],f:480,t:570},{d:[0,1,2,3,4],f:900,t:960}]},
+ "P2"  :{name:"All day parking",color:"#1565C0",kind:"free"},
+ "P3"  :{name:"5 minute pick-up",color:"#E8B500",ink:"#182028",kind:"limit",limit:5,school:true,
+         windows:[{d:[0,1,2,3,4],f:480,t:540},{d:[0,1,2,3,4],f:900,t:975}]},
+ "P4"  :{name:"10 minute",color:"#E8447C",kind:"limit",limit:10,
+         windows:[{d:[0,1,2,3,4],f:480,t:570},{d:[0,1,2,3,4],f:870,t:960}]},
+ "P5"  :{name:"2 hour, middle of the day",color:"#9B7FD4",kind:"limit",limit:120,
+         windows:[{d:[0,1,2,3,4],f:570,t:870}]},
+ "P6"  :{name:"1 hour",color:"#EF7B1F",kind:"limit",limit:60,
+         windows:[{d:[0,1,2,3,4],f:480,t:1080}]},
+ "P7"  :{name:"2 hour",color:"#17A2A8",kind:"limit",limit:120,
+         windows:[{d:[0,1,2,3,4],f:540,t:1020},{d:[5],f:540,t:720}]},
+ "P8"  :{name:"1 hour",color:"#C8A96A",kind:"limit",limit:60,
+         windows:[{d:[0,1,2,3,4],f:480,t:900}]},
+ "P9-L":{name:"1 hour, left side",color:"#7CB342",kind:"limit",limit:60,
+         windows:[{d:[0,1,2,3,4],f:480,t:900}]},
+ "P9-R":{name:"1 hour, right side",color:"#7CB342",kind:"limit",limit:60,
+         windows:[{d:[0,1,2,3,4],f:480,t:1050}]},
+ "MZ"  :{name:"Mail zone",color:"#9E9E9E",kind:"closed",note:"Reserved for mail vehicles"},
+ "PZ"  :{name:"Permit zone",color:"#F2B21C",kind:"closed",note:"Permit holders only"},
+ "BZ"  :{name:"Bus zone",color:"#7E57C2",kind:"closed",note:"Buses only"},
+ "NS"  :{name:"No stopping",color:"#E53935",kind:"closed",note:"No stopping at any time"}
+};
+const ORDER=["P1","P2","P3","P4","P5","P6","P7","P8","P9-L","P9-R","MZ","PZ","BZ","NS"];
+
+/* ===== geometry =====
+   Reference frame is the clean map at 1097 x 1054. The SVG viewBox is fixed to that,
+   so the overlay scales with the image whatever its resolution.
+   Each zone hugs a kerb: [id, cx, cy, width, height, rotation]                       */
+const DEFAULT_ZONES=[
+ ["P6",    451.6, 133.0, 296.0,  21.0,   1.5],
+ ["PZ",    450.9, 179.6, 293.7,  21.0,   1.5],
+ ["PZ",    262.6, 290.8,  21.0, 231.7,   2.3],
+ ["P4",    305.8, 302.6,  20.0, 220.8,   1.8],
+ ["P5",    329.8, 303.2,  20.0, 217.7,   1.9],
+ ["PZ",    132.7, 422.7, 236.0,  21.0,   1.8],
+ ["P3",    348.0, 432.0,  82.0,  21.0,   2.0],
+ ["P2",    490.1, 434.0, 172.0,  21.0,   0.7],
+ ["PZ",    821.6, 144.8, 386.4,  21.0,   2.2],
+ ["P2",    819.4, 191.6, 390.0,  21.0,   1.9],
+ ["P4",    626.2, 312.8,  20.0, 220.8,   2.3],
+ ["P5",    650.1, 313.8,  20.0, 220.0,   1.8],
+ ["P5",    983.5, 320.2,  20.0, 215.3,   2.2],
+ ["P4",   1010.2, 322.0,  20.0, 215.0,   2.1],
+ ["BZ",    681.5, 439.1, 122.1,  21.0,   1.0],
+ ["P2",    880.6, 444.2, 247.9,  21.0,   1.6],
+ ["P2",     48.0, 473.0,  96.0,  21.0,   1.9],
+ ["BZ",    188.0, 476.8, 150.0,  21.0,   1.9],
+ ["P1",    404.0, 481.0, 226.0,  21.0,   1.2],
+ ["BZ",    404.5, 504.9, 226.0,  21.0,   1.2],
+ ["NS",    578.5, 487.4,  58.0,  21.0,   0.0],
+ ["P1",    681.9, 491.1, 124.6,  21.0,   1.7],
+ ["BZ",    795.5, 495.7,  85.0,  20.8,   2.0],
+ ["P7",    975.0, 494.0, 230.0,  22.0,   1.5],
+ ["P2",    823.1, 554.1,  20.0,  72.0,   2.2],
+ ["P8",    872.0, 522.0,  30.0,  26.0, -89.3],
+ ["P9-L",  866.9, 579.1,  20.0,  70.0,   6.3],
+ ["NS",    787.5, 669.3,  22.0, 141.5,  17.3],
+ ["NS",    834.7, 689.4,  22.0, 108.5,  18.3],
+ ["P2",    765.2, 922.2,  20.0, 247.7,   2.3],
+ ["P9-R",  814.0, 922.9,  22.0, 247.4,   2.0]
+];
+const REF={w:1097,h:1054};
+let ZONES=[];
+function loadZones(list){ZONES=list.map((z,i)=>({i,id:z[0],cx:z[1],cy:z[2],w:z[3],h:z[4],rot:z[5]}))}
+loadZones(DEFAULT_ZONES);
+
+/* ===== state ===== */
+const DAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const LONG=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+const STAYS=[["Any",0],["15 min",15],["1 hr",60],["2 hr",120],["All day",600]];
+const T0=360,T1=1200;
+let state={day:0,min:855,live:true,stay:0,sel:null,edit:false};
+let editIdx=null;
+
+const $=s=>document.querySelector(s);
+const fmt=m=>{const h=Math.floor(m/60),x=m%60,ap=h<12?"am":"pm",hh=(h%12)||12;
+  return x?`${hh}:${String(x).padStart(2,"0")} ${ap}`:`${hh} ${ap}`};
+const dur=m=>{if(m>=600)return"all day";const h=Math.floor(m/60),x=m%60;
+  return h?(x?`${h} hr ${x} min`:`${h} hr`):`${x} min`};
+
+function winsFor(id,day,school){
+  const r=RULES[id];
+  if(r.kind!=="limit")return[];
+  if(r.school&&!school)return[];
+  return (r.windows||[]).filter(w=>w.d.includes(day)).sort((a,b)=>a.f-b.f);
+}
+function statusOf(id,day,min,school){
+  const r=RULES[id];
+  if(r.kind==="closed")return{state:"no",head:r.note,sub:"Applies at all times",stay:0};
+  if(r.kind==="free")return{state:"go",head:"Park all day",sub:"No time limit signed",stay:9999};
+  const ws=winsFor(id,day,school),cur=ws.find(w=>min>=w.f&&min<w.t);
+  if(cur)return{state:r.limit<=10?"warn":"go",head:`${dur(r.limit)} limit`,
+    sub:`Restriction runs ${fmt(cur.f)} – ${fmt(cur.t)}, then it's unrestricted`,stay:r.limit};
+  const next=ws.find(w=>w.f>min);
+  if(!next)return{state:"go",head:"Unrestricted now",sub:"No further restriction today",stay:9999};
+  return{state:"go",head:"Unrestricted now",
+    sub:`Free until ${fmt(next.f)}, when the ${dur(r.limit)} limit starts`,stay:next.f-min};
+}
+const passes=st=>state.stay===0||st.stay>=state.stay;
+
+/* ===== map image ===== */
+const img=$("#mapimg"),wrap=$("#mapwrap"),drop=$("#drop"),stage=$("#stage");
+function showMap(src){
+  img.onload=()=>{wrap.hidden=false;drop.style.display="none";sizeMap();render()};
+  img.src=src;
+}
+function sizeMap(){
+  if(!img.naturalWidth)return;
+  const aw=stage.clientWidth-20,ah=stage.clientHeight-20,r=img.naturalWidth/img.naturalHeight;
+  let w=aw,h=w/r;
+  if(window.innerWidth>860&&h>ah){h=ah;w=h*r}
+  wrap.style.width=w+"px";wrap.style.height=h+"px";
+}
+addEventListener("resize",()=>{sizeMap();drawHandles();drawRows()});
+function readFile(f){
+  if(!f||!f.type.startsWith("image/"))return;
+  const rd=new FileReader();
+  rd.onload=()=>{showMap(rd.result);save("map:base",rd.result)};
+  rd.readAsDataURL(f);
+}
+$("#pick").onclick=()=>$("#file").click();
+$("#file").onchange=e=>readFile(e.target.files[0]);
+["dragenter","dragover"].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.add("hot")}));
+["dragleave","drop"].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.remove("hot")}));
+drop.addEventListener("drop",e=>readFile(e.dataTransfer.files[0]));
+$("#resetBtn").onclick=()=>{wrap.hidden=true;drop.style.display="";del("map:base")};
+
+/* ---- persistence: try the account store, then this browser, then memory ---- */
+const STORE=(()=>{
+  const mem={};
+  const acct = (typeof window!=="undefined" && window.storage && typeof window.storage.set==="function");
+  let ls=null;
+  try{localStorage.setItem("__probe","1");localStorage.removeItem("__probe");ls=localStorage}catch(e){}
+  return{
+    mode: acct?"account":(ls?"browser":"none"),
+    async get(k){
+      if(acct){try{const r=await window.storage.get(k); if(r&&r.value!=null)return r.value}catch(e){}}
+      if(ls){const v=ls.getItem(k); if(v!=null)return v}
+      return mem[k]!=null?mem[k]:null;
+    },
+    async set(k,v){
+      mem[k]=v; let ok=false;
+      if(acct){try{await window.storage.set(k,v); ok=true}catch(e){}}
+      if(ls){try{ls.setItem(k,v); ok=true}catch(e){}}
+      return ok;
+    },
+    async del(k){
+      delete mem[k];
+      if(acct){try{await window.storage.delete(k)}catch(e){}}
+      if(ls){try{ls.removeItem(k)}catch(e){}}
+    }
+  };
+})();
+const save=(k,v)=>STORE.set(k,v);
+const del=k=>STORE.del(k);
+
+/* Look for the map automatically: a copy saved earlier, then a file sitting
+   next to this page (map.png, map.jpg, …). The drop zone is only the fallback. */
+const LOCAL=["map.png","map.PNG","Map.png","Map.PNG",
+             "map.jpg","map.JPG","map.jpeg","map.JPEG",
+             "map.webp","map.WEBP","map.svg","map.SVG"];
+function tryLocal(n){
+  if(n>=LOCAL.length){$("#drop").style.display="";return}
+  const probe=new Image();
+  probe.onload=()=>showMap(LOCAL[n]);
+  probe.onerror=()=>tryLocal(n+1);
+  probe.src=LOCAL[n];
+}
+/* zone positions: parking-zones.json beside this page wins over the built-in
+   copy, and your own saved edits win over both. */
+let ZSRC="built-in copy";
+async function fetchZones(){
+  try{
+    const r=await fetch("parking-zones.json",{cache:"no-cache"});
+    if(!r.ok)return null;
+    const a=await r.json();
+    return (Array.isArray(a)&&a.length&&Array.isArray(a[0]))?a:null;
+  }catch(e){return null}
+}
+(async()=>{
+  const file=await fetchZones();
+  if(file){loadZones(file);ZSRC="parking-zones.json"}
+  try{const z=await STORE.get("zones:v3");
+      if(z){loadZones(JSON.parse(z));ZSRC="your saved edits"}}catch(e){}
+  render();
+  let saved=null;
+  try{saved=await STORE.get("map:base")}catch(e){}
+  if(saved){showMap(saved);return}
+  $("#drop").style.display="none";
+  tryLocal(0);
+})();
+
+/* ===== draw ===== */
+const gz=$("#zones"),tip=$("#tip"),NS="http://www.w3.org/2000/svg";
+function drawZones(){
+  gz.innerHTML="";
+  const school=$("#schoolChk").checked;
+  ZONES.forEach(z=>{
+    const r=RULES[z.id],st=statusOf(z.id,state.day,state.min,school);
+    const g=document.createElementNS(NS,"g");
+    g.setAttribute("class","zone"+((state.sel&&state.sel!==z.id)||!passes(st)?" dim":"")+(state.sel===z.id?" sel":"")+(state.edit&&editIdx===z.i?" epick":""));
+    g.setAttribute("transform",`translate(${z.cx} ${z.cy}) rotate(${z.rot})`);
+    g.dataset.i=z.i;
+    const rect=document.createElementNS(NS,"rect");
+    rect.setAttribute("class","body");
+    rect.setAttribute("x",-z.w/2);rect.setAttribute("y",-z.h/2);
+    rect.setAttribute("width",z.w);rect.setAttribute("height",z.h);rect.setAttribute("rx",3);
+    rect.setAttribute("fill",r.color);rect.setAttribute("fill-opacity",st.state==="no"?.30:.42);
+    rect.setAttribute("stroke",r.color);
+    g.appendChild(rect);
+    if(st.state==="no"){
+      const hz=rect.cloneNode();hz.setAttribute("fill","url(#hatch)");
+      hz.setAttribute("fill-opacity",".5");hz.setAttribute("stroke","none");g.appendChild(hz);
+    }
+    const vert=z.h>z.w;
+    const t=document.createElementNS(NS,"text");
+    t.setAttribute("text-anchor","middle");t.setAttribute("dominant-baseline","central");
+    t.setAttribute("font-size",Math.min(15,Math.max(9,(vert?z.w:z.h)*.8)));
+    t.setAttribute("fill",r.ink||r.color);
+    if(vert)t.setAttribute("transform","rotate(-90)");
+    t.textContent=z.id;
+    g.appendChild(t);
+    gz.appendChild(g);
+  });
+}
+
+
+
+const ov=$("#ov");
+
+/* ===== edit: move, resize and rotate a zone with handles on the zone itself ===== */
+const gh=$("#handles");
+function pxScale(){
+  const r=wrap.getBoundingClientRect();
+  return {kx: r.width? REF.w/r.width : 1, ky: r.height? REF.h/r.height : 1};
+}
+function axes(rot){
+  const a=rot*Math.PI/180;
+  return {ux:[Math.cos(a),Math.sin(a)], uy:[-Math.sin(a),Math.cos(a)]};
+}
+function drawHandles(){
+  gh.innerHTML="";
+  if(!state.edit||editIdx===null)return;
+  const z=ZONES[editIdx],{kx,ky}=pxScale(),{ux,uy}=axes(z.rot);
+  const at=(dx,dy)=>[z.cx+ux[0]*dx+uy[0]*dy, z.cy+ux[1]*dx+uy[1]*dy];
+  const stem=at(0,-(z.h/2+18*ky)), pts=[
+    ["ex+",at( z.w/2,0)],["ex-",at(-z.w/2,0)],
+    ["ey+",at(0, z.h/2)],["ey-",at(0,-z.h/2)],
+    ["rot",stem]
+  ];
+  const top=at(0,-z.h/2);
+  const ln=document.createElementNS(NS,"line");
+  ln.setAttribute("class","hstem");
+  ln.setAttribute("x1",top[0]);ln.setAttribute("y1",top[1]);
+  ln.setAttribute("x2",stem[0]);ln.setAttribute("y2",stem[1]);
+  gh.appendChild(ln);
+  pts.forEach(([k,p])=>{
+    const e=document.createElementNS(NS,"ellipse");
+    e.setAttribute("class","handle"+(k==="rot"?" rot":""));
+    e.setAttribute("cx",p[0]);e.setAttribute("cy",p[1]);
+    e.setAttribute("rx",6.5*kx);e.setAttribute("ry",6.5*ky);
+    e.dataset.h=k;
+    gh.appendChild(e);
+  });
+}
+function svgPt(e){
+  const m=ov.getScreenCTM().inverse(),p=ov.createSVGPoint();
+  p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(m);
+}
+let grab=null;
+ov.addEventListener("pointerdown",e=>{
+  if(!state.edit)return;
+  const h=e.target.closest(".handle"), g=e.target.closest(".zone");
+  if(h){
+    const z=ZONES[editIdx];
+    grab={kind:h.dataset.h,z,p0:svgPt(e),z0:{cx:z.cx,cy:z.cy,w:z.w,h:z.h,rot:z.rot}};
+  }else if(g){
+    editIdx=+g.dataset.i;
+    const z=ZONES[editIdx];
+    grab={kind:"move",z,p0:svgPt(e),z0:{cx:z.cx,cy:z.cy,w:z.w,h:z.h,rot:z.rot}};
+    render();
+  }else{ return }
+  ov.setPointerCapture(e.pointerId);
+  e.preventDefault();
+});
+ov.addEventListener("pointermove",e=>{
+  if(!grab)return;
+  const p=svgPt(e),z=grab.z,z0=grab.z0,{ux,uy}=axes(z0.rot);
+  const dx=p.x-z0.cx, dy=p.y-z0.cy;
+  const lx=dx*ux[0]+dy*ux[1], ly=dx*uy[0]+dy*uy[1];
+  const shift=(a,b)=>{z.cx=z0.cx+ux[0]*a+uy[0]*b; z.cy=z0.cy+ux[1]*a+uy[1]*b};
+  if(grab.kind==="move"){
+    z.cx=z0.cx+(p.x-grab.p0.x); z.cy=z0.cy+(p.y-grab.p0.y);
+  }else if(grab.kind==="ex+"){ z.w=Math.max(8,lx+z0.w/2); shift((z.w-z0.w)/2,0);
+  }else if(grab.kind==="ex-"){ z.w=Math.max(8,z0.w/2-lx); shift(-(z.w-z0.w)/2,0);
+  }else if(grab.kind==="ey+"){ z.h=Math.max(8,ly+z0.h/2); shift(0,(z.h-z0.h)/2);
+  }else if(grab.kind==="ey-"){ z.h=Math.max(8,z0.h/2-ly); shift(0,-(z.h-z0.h)/2);
+  }else if(grab.kind==="rot"){
+    let a=Math.atan2(p.y-z0.cy,p.x-z0.cx)*180/Math.PI+90;
+    if(e.shiftKey)a=Math.round(a/15)*15;
+    z.rot=Math.round(a*10)/10;
+  }
+  drawZones();drawHandles();editLabel();
+});
+["pointerup","pointercancel"].forEach(t=>ov.addEventListener(t,()=>{
+  if(grab){grab=null;saveZones()}}));
+
+addEventListener("keydown",e=>{
+  if(!state.edit||editIdx===null||/INPUT|TEXTAREA/.test(document.activeElement.tagName))return;
+  const z=ZONES[editIdx],step=e.shiftKey?1:3;
+  const k=e.key;
+  if(k==="ArrowLeft")z.cx-=step; else if(k==="ArrowRight")z.cx+=step;
+  else if(k==="ArrowUp")z.cy-=step; else if(k==="ArrowDown")z.cy+=step;
+  else if(k==="[")z.rot-=e.shiftKey?1:5; else if(k==="]")z.rot+=e.shiftKey?1:5;
+  else if(k==="+"||k==="=")z.w+=3; else if(k==="-"||k==="_")z.w=Math.max(8,z.w-3);
+  else return;
+  e.preventDefault();drawZones();drawHandles();editLabel();saveZones();
+});
+
+let saveTimer=null;
+function zonesJSON(){
+  return JSON.stringify(ZONES.map(z=>
+    [z.id,+z.cx.toFixed(1),+z.cy.toFixed(1),+z.w.toFixed(1),+z.h.toFixed(1),+(+z.rot).toFixed(1)]));
+}
+async function saveZones(){
+  const ok=await save("zones:v3",zonesJSON());
+  const el=$("#saveState");
+  if(!el)return;
+  el.textContent = ok ? (STORE.mode==="account"?"Saved":"Saved in this browser")
+                      : "Not saved — use Export";
+  el.style.color = ok?"var(--go)":"var(--stop)";
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(()=>{el.textContent=""},2600);
+}
+function editLabel(){
+  const w=$("#editWho");
+  if(editIdx===null){w.textContent="Tap a zone on the map";return}
+  const z=ZONES[editIdx];
+  w.textContent=`${z.id} — ${Math.round(Math.max(z.w,z.h))} long, ${Math.round(Math.min(z.w,z.h))} wide, ${Math.round(z.rot)}°`;
+}
+function toggleEdit(on){
+  state.edit=on; if(!on)editIdx=null;
+  $("#editbar").hidden=!on;
+  wrap.classList.toggle("editing",on);
+  $("#editBtn").textContent=on?"Done editing":"Edit zones";
+  if(on)$("#zoneSrc").textContent="Zones from "+ZSRC;
+  if(on&&STORE.mode==="none"){
+    $("#saveState").textContent="Can't save here — Export to keep changes";
+    $("#saveState").style.color="var(--stop)";
+  }
+  editLabel();render();
+}
+$("#editBtn").onclick=()=>toggleEdit(!state.edit);
+$("#editDone").onclick=()=>toggleEdit(false);
+$("#editReset").onclick=async()=>{
+  if(!confirm("Discard your edits and reload the published zone positions?"))return;
+  await del("zones:v3");
+  const file=await fetchZones();
+  loadZones(file||DEFAULT_ZONES);
+  ZSRC=file?"parking-zones.json":"built-in copy";
+  editIdx=null;editLabel();render();
+};
+$("#editExport").onclick=()=>{
+  const b=new Blob([zonesJSON()],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(b);a.download="parking-zones.json";a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+};
+$("#editImport").onclick=()=>$("#zoneFile").click();
+$("#zoneFile").onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  const rd=new FileReader();
+  rd.onload=()=>{try{
+      const arr=JSON.parse(rd.result);
+      if(!Array.isArray(arr)||!arr.length)throw 0;
+      loadZones(arr);editIdx=null;saveZones();editLabel();render();
+    }catch(err){alert("That file doesn't look like an exported zone file.")}};
+  rd.readAsText(f);
+  e.target.value="";
+};
+
+/* ===== tap / hover ===== */
+ov.addEventListener("click",e=>{
+  if(state.edit)return;
+  const g=e.target.closest(".zone");if(!g)return;
+  const z=ZONES[+g.dataset.i];
+  state.sel=state.sel===z.id?null:z.id;render();
+});
+ov.addEventListener("pointermove",e=>{
+  if(state.edit){tip.classList.remove("on");return}
+  const g=e.target.closest(".zone");
+  if(!g){tip.classList.remove("on");return}
+  const z=ZONES[+g.dataset.i],st=statusOf(z.id,state.day,state.min,$("#schoolChk").checked);
+  tip.innerHTML=`<b>${z.id}</b> · ${st.head}`;
+  tip.style.left=e.clientX+"px";tip.style.top=e.clientY+"px";tip.classList.add("on");
+});
+ov.addEventListener("pointerleave",()=>tip.classList.remove("on"));
+
+/* ===== day timeline ===== */
+function drawRows(){
+  const rows=$("#rows"),school=$("#schoolChk").checked;
+  [...rows.querySelectorAll(".row")].forEach(n=>n.remove());
+  let n=0;
+  ORDER.forEach(id=>{
+    const r=RULES[id],st=statusOf(id,state.day,state.min,school);
+    if(passes(st))n++;
+    const row=document.createElement("button");
+    row.className="row"+((state.sel&&state.sel!==id)||!passes(st)?" dim":"")+(state.sel===id?" sel":"");
+    row.innerHTML=`<span class="tag" style="background:${r.color};color:${r.ink||"#fff"}">${id}</span>`;
+    const tr=document.createElement("div");tr.className="track";
+    if(r.kind==="closed"){
+      tr.innerHTML=`<div class="win" style="left:0;right:0;background:${r.color}">${r.note}</div>`;
+    }else if(r.kind==="free"){
+      tr.innerHTML=`<div class="win" style="left:0;right:0;background:${r.color}">no time limit</div>`;
+    }else{
+      const ws=winsFor(id,state.day,school);
+      tr.innerHTML=`<div class="free"></div>`+ws.map(w=>{
+        const a=(Math.max(w.f,T0)-T0)/(T1-T0)*100,b=(Math.min(w.t,T1)-T0)/(T1-T0)*100;
+        return `<div class="win" style="left:${a}%;width:${b-a}%;background:${r.color};color:${r.ink||"#fff"}">${dur(r.limit)}</div>`;
+      }).join("");
+      if(!ws.length)tr.innerHTML+=`<div class="win" style="left:0;right:0;color:#8b959c">no restriction today</div>`;
+    }
+    row.appendChild(tr);
+    row.onclick=()=>{state.sel=state.sel===id?null:id;render()};
+    rows.appendChild(row);
+  });
+  $("#count").textContent=state.stay?`${n} of ${ORDER.length} zone types work`:`${ORDER.length} zone types`;
+  const rr=rows.getBoundingClientRect(),any=rows.querySelector(".track");
+  if(any){const tb=any.getBoundingClientRect();
+    $("#ph").style.left=(tb.left-rr.left+(state.min-T0)/(T1-T0)*tb.width)+"px";}
+}
+
+/* ===== detail ===== */
+function drawDetail(){
+  const d=$("#detail");
+  if(!state.sel){d.hidden=true;return}
+  const id=state.sel,r=RULES[id],school=$("#schoolChk").checked;
+  const st=statusOf(id,state.day,state.min,school),ws=winsFor(id,state.day,school);
+  const sched=r.kind!=="limit"?"":
+    (ws.length?`Today: ${ws.map(w=>`${fmt(w.f)} – ${fmt(w.t)}`).join(", ")}`
+      :(r.school&&!school?"No restriction — this limit only applies on school days"
+        :"No restriction on "+LONG[state.day]));
+  d.hidden=false;
+  d.innerHTML=`<div class="hd"><span class="tag" style="background:${r.color};color:${r.ink||"#fff"}">${id}</span>
+    <h3>${r.name}</h3></div>
+    <div class="verdict ${st.state}">${st.head}</div><p>${st.sub}</p>
+    ${sched?`<p>${sched}</p>`:""}
+    ${st.stay<9999&&st.stay>0?`<p>Arriving ${fmt(state.min)}, you can stay until about <b>${fmt(Math.min(state.min+st.stay,1439))}</b>.</p>`:""}`;
+}
+
+/* ===== controls ===== */
+const daysEl=$("#days");
+DAYS.forEach((d,i)=>{const b=document.createElement("button");
+  b.textContent=d;b.onclick=()=>{state.day=i;state.live=false;render()};daysEl.appendChild(b)});
+const chips=$("#stayChips");
+STAYS.forEach(([lab,v])=>{const b=document.createElement("button");
+  b.className="chip";b.textContent=lab;b.onclick=()=>{state.stay=v;render()};chips.appendChild(b)});
+function timeChanged(e){state.min=+e.target.value;state.live=false;render()}
+$("#time").addEventListener("input",timeChanged);
+$("#time").addEventListener("change",timeChanged);
+$("#schoolChk").onchange=render;
+$("#nowBtn").onclick=()=>{state.live=true;syncNow();render()};
+function syncNow(){const n=new Date();state.day=(n.getDay()+6)%7;
+  state.min=Math.min(T1,Math.max(T0,n.getHours()*60+n.getMinutes()))}
+if(state.live)syncNow();
+
+function render(){
+  try{renderInner()}catch(err){
+    const e=$("#err");if(e)e.textContent="Error: "+(err&&err.message||err);
+    console.error(err);
+  }
+}
+function renderInner(){
+  if(state.live)syncNow();
+  $("#tLabel").textContent=fmt(state.min);
+  $("#dLabel").textContent=LONG[state.day];
+  $("#time").value=state.min;
+  $("#nowBtn").setAttribute("aria-pressed",state.live);
+  [...daysEl.children].forEach((b,i)=>b.setAttribute("aria-pressed",i===state.day));
+  [...chips.children].forEach((b,i)=>b.setAttribute("aria-pressed",STAYS[i][1]===state.stay));
+  drawZones();drawHandles();drawRows();drawDetail();
+}
+render();
+setInterval(()=>{if(state.live)render()},30000);
+</script>
+</body>
+</html>
