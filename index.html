@@ -45,7 +45,7 @@ h1 span{color:var(--ink-3);font-weight:500}
 svg.overlay{position:absolute;inset:0;width:100%;height:100%}
 .zone{cursor:pointer}
 .zone rect.body{stroke-width:2.2;vector-effect:non-scaling-stroke}
-.zone.dim{opacity:.16}
+.zone.dim{opacity:.34}
 .zone.sel rect.body{stroke-width:4.5}
 .zone text{font-family:"Barlow Semi Condensed",sans-serif;font-weight:700;
   paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round;pointer-events:none}
@@ -236,7 +236,7 @@ input[type=range]::-moz-range-thumb{width:32px;height:32px;border-radius:50%;bac
         <span id="count"></span>
         <span id="err" style="color:var(--stop)"></span>
         <span class="sp"></span>
-        <span id="build" style="opacity:.7">build 16</span>
+        <button id="build" style="opacity:.7;border:0;background:none;padding:0;min-height:0">build 18</button>
         <button id="editBtn">Edit zones</button>
         <button id="resetBtn">Change map</button>
       </div>
@@ -580,14 +580,13 @@ function drawZones(){
     rect.setAttribute("width",z.w);rect.setAttribute("height",z.h);rect.setAttribute("rx",3);
     rect.setAttribute("fill",r.color);
     rect.setAttribute("stroke",r.color);
-    if(st.state==="no"){                    // bus, permit, no stopping — never available
-      rect.setAttribute("fill-opacity",.30);
-    }else if(st.live){                      // limit or all-day parking in force right now
-      rect.setAttribute("fill-opacity",.58);
-    }else{                                  // signed hours not running at this time
-      rect.setAttribute("fill-opacity",.13);
-      rect.setAttribute("stroke-dasharray","5 4");
-      rect.setAttribute("stroke-opacity",.75);
+    if(st.state==="no"){                    // not available at this time
+      rect.setAttribute("fill-opacity",.34);
+    }else if(st.live){                      // its signed hours are running now
+      rect.setAttribute("fill-opacity",.62);
+    }else{                                  // hours not running — still clearly on the map
+      rect.setAttribute("fill-opacity",.28);
+      rect.setAttribute("stroke-dasharray","6 4");
     }
     g.appendChild(rect);
     if(st.state==="no"){
@@ -599,7 +598,6 @@ function drawZones(){
     t.setAttribute("text-anchor","middle");t.setAttribute("dominant-baseline","central");
     t.setAttribute("font-size",Math.min(15,Math.max(9,(vert?z.w:z.h)*.8)));
     t.setAttribute("fill",r.ink||r.color);
-    if(!st.live&&st.state!=="no")t.setAttribute("opacity",.55);
     if(vert)t.setAttribute("transform","rotate(-90)");
     t.textContent=tagOf(z.id);
     g.appendChild(t);
@@ -734,6 +732,19 @@ function toggleEdit(on){
   editLabel();render();
 }
 $("#editBtn").onclick=()=>toggleEdit(!state.edit);
+
+/* tap the build number: report every bar actually on the map */
+$("#build").onclick=()=>{
+  const school=$("#schoolChk").checked;
+  const drawn=[...gz.querySelectorAll(".zone")].length;
+  const lines=ZONES.map(z=>{
+    const st=statusOf(z.id,state.day,state.min,school);
+    const node=gz.querySelector('.zone[data-i="'+z.i+'"]');
+    const vis=node?(node.classList.contains("dim")?"faded":"shown"):"MISSING";
+    return `${z.id} @${Math.round(z.cx)},${Math.round(z.cy)}  ${vis}  ${st.head}`;
+  });
+  alert(`build 18 · source: ${ZSRC}\n${ZONES.length} zones loaded, ${drawn} drawn\n\n`+lines.join("\n"));
+};
 $("#editDone").onclick=()=>toggleEdit(false);
 $("#editReset").onclick=async()=>{
   if(!confirm("Discard your edits and reload the published zone positions?"))return;
